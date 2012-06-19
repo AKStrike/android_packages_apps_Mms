@@ -164,6 +164,13 @@ import com.android.mms.util.SmileyParser;
 
 import android.text.InputFilter.LengthFilter;
 
+//Pick-Up-To-Call
+import android.provider.Settings.SettingNotFoundException;
+import android.hardware.SensorEventListener;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorManager;
+
 /**
  * This is the main UI for:
  * 1. Composing a new message;
@@ -179,7 +186,7 @@ import android.text.InputFilter.LengthFilter;
  */
 public class ComposeMessageActivity extends Activity
         implements View.OnClickListener, TextView.OnEditorActionListener,
-        MessageStatusListener, Contact.UpdateListener, OnGesturePerformedListener {
+        MessageStatusListener, Contact.UpdateListener, OnGesturePerformedListener, SensorEventListener {
 
     // Phone Goggles block created for compatibility and demonstration to
     // to external developers
@@ -320,6 +327,12 @@ public class ComposeMessageActivity extends Activity
     private GestureLibrary mLibrary;
     private TemplatesDb mTemplatesDb;
     private String[] mTemplatesText;
+    
+    //Pick-Up-To-Call
+    private SensorManager mSensorManager;
+    private static final String PICK_UP_TO_CALL = "pick_up_to_call";
+    private int SensorOrientationY;
+	private int SensorProximity;
 
     @SuppressWarnings("unused")
     private static void log(String logMsg) {
@@ -1780,7 +1793,64 @@ public class ComposeMessageActivity extends Activity
         }
 
         registerForContextMenu(mTextEditor);
+        
+        //Pick-Up-To-Call
+        try {
+			if(Settings.System.getInt(getContentResolver(),PICK_UP_TO_CALL) == 1) {
+				SensorProximity = 1;
+				SensorOrientationY = 0;
+				
+				mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+				mSensorManager.registerListener(this,
+							mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
+							SensorManager.SENSOR_DELAY_UI);
+				mSensorManager.registerListener(this,
+							mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY),
+							SensorManager.SENSOR_DELAY_UI);
+			}
+		} catch (SettingNotFoundException e) {
+			Log.w("ERROR", e.toString());
+		}
     }
+    
+    //Pick-Up-To-Call
+	@Override
+	public void onSensorChanged(SensorEvent event) {
+		String number = getRecipients().get(0).getNumber();
+        Intent dialIntent = new Intent(Intent.ACTION_CALL);
+		
+		//if (isDigitsEmpty()==false) {
+			dialIntent.setData(Uri.fromParts("tel", number, null));
+			
+			//get event if orientation is changed
+			switch (event.sensor.getType()) {
+				
+			case Sensor.TYPE_ORIENTATION:
+				SensorOrientationY = (int) event.values[SensorManager.DATA_Y];
+				break;
+			
+			case Sensor.TYPE_PROXIMITY:
+				SensorProximity = (int) event.values[0];
+				break;	
+			}
+			
+			if (SensorOrientationY < -70 && SensorProximity == 0) {
+					mSensorManager.unregisterListener(this,
+					mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION));
+					mSensorManager.unregisterListener(this,
+					mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY));
+					
+					//start phone call intent
+					dialIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+					startActivity(dialIntent);
+				
+				}
+		//}
+	}
+	
+	@Override
+	public void onAccuracyChanged(Sensor sensor, int accuracy) {
+	}
 
     @Override
     protected Dialog onCreateDialog(int id, Bundle args) {
@@ -2143,6 +2213,24 @@ public class ComposeMessageActivity extends Activity
                 updateTitle(recipients);
             }
         }, 100);
+        
+        //Pick-Up-To-Call
+        try {
+			if(Settings.System.getInt(getContentResolver(),PICK_UP_TO_CALL) == 1) {
+				SensorProximity = 1;
+				SensorOrientationY = 0;
+				
+				mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+				mSensorManager.registerListener(this,
+							mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
+							SensorManager.SENSOR_DELAY_UI);
+				mSensorManager.registerListener(this,
+							mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY),
+							SensorManager.SENSOR_DELAY_UI);
+			}
+		} catch (SettingNotFoundException e) {
+			Log.w("ERROR", e.toString());
+		}
     }
 
     @Override
@@ -2155,6 +2243,18 @@ public class ComposeMessageActivity extends Activity
         //Contact.stopPresenceObserver();
 
         removeRecipientsListeners();
+        
+        //Pick-Up-To-Call
+		try {
+			if(Settings.System.getInt(getContentResolver(),PICK_UP_TO_CALL) == 1) {
+				mSensorManager.unregisterListener(this,
+							mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION));
+				mSensorManager.unregisterListener(this,
+							mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY));
+			}
+		} catch (SettingNotFoundException e) {
+			Log.w("ERROR", e.toString());
+		}
     }
 
     @Override
