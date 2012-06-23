@@ -1790,69 +1790,75 @@ public class ComposeMessageActivity extends Activity
 
         if (TRACE) {
             android.os.Debug.startMethodTracing("compose");
-        }
+		}
 
-        registerForContextMenu(mTextEditor);
-        
-        //Pick-Up-To-Call
-        try {
-			if(Settings.System.getInt(getContentResolver(),PICK_UP_TO_CALL) == 1) {
+		registerForContextMenu(mTextEditor);
+
+		// Pick-Up-To-Call
+		try {
+			if (Settings.System.getInt(getContentResolver(), PICK_UP_TO_CALL) == 1) {
 				SensorProximity = 1;
 				SensorOrientationY = 0;
-				
+
 				mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+				mSensorManager.registerListener(this, mSensorManager
+						.getDefaultSensor(Sensor.TYPE_ORIENTATION),
+						SensorManager.SENSOR_DELAY_UI);
 				mSensorManager.registerListener(this,
-							mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
-							SensorManager.SENSOR_DELAY_UI);
-				mSensorManager.registerListener(this,
-							mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY),
-							SensorManager.SENSOR_DELAY_UI);
+						mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY),
+						SensorManager.SENSOR_DELAY_UI);
 			}
 		} catch (SettingNotFoundException e) {
 			Log.w("ERROR", e.toString());
 		}
-    }
-    
-    //Pick-Up-To-Call
+	}
+
+	// Pick-Up-To-Call
 	@Override
 	public void onSensorChanged(SensorEvent event) {
-		String number = getRecipients().get(0).getNumber();
-        Intent dialIntent = new Intent(Intent.ACTION_CALL);
+
+		/* get event if orientation is changed, 
+		 * save Sensor event.values to check on them later
+		 */
+		switch (event.sensor.getType()) {
+
+		case Sensor.TYPE_ORIENTATION:
+			SensorOrientationY = (int) event.values[SensorManager.DATA_Y];
+			break;
+
+		case Sensor.TYPE_PROXIMITY:
+			SensorProximity = (int) event.values[0];
+			break;
+		}
 		
-		//if (isDigitsEmpty()==false) {
-			dialIntent.setData(Uri.fromParts("tel", number, null));
-			
-			//get event if orientation is changed
-			switch (event.sensor.getType()) {
+		/*
+		 * start a call with the recipients' number,
+		 * if the Y-orientation is < -65 and the value of the Proximity Sensor is 0
+		 */
+		if (SensorOrientationY < -65 && SensorProximity == 0) {
+
+			if (getRecipients().isEmpty() == false) {
+				//unregister Listener to don't let the onSesorChanged run the whole time
+				mSensorManager.unregisterListener(this,
+						mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION));
+				mSensorManager.unregisterListener(this,
+						mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY));
 				
-			case Sensor.TYPE_ORIENTATION:
-				SensorOrientationY = (int) event.values[SensorManager.DATA_Y];
-				break;
-			
-			case Sensor.TYPE_PROXIMITY:
-				SensorProximity = (int) event.values[0];
-				break;	
+				//get number and attach it to an Intent.ACTION_CALL, then start the Intent
+				String number = getRecipients().get(0).getNumber();
+				Intent dialIntent = new Intent(Intent.ACTION_CALL);
+				dialIntent.setData(Uri.fromParts("tel", number, null));
+				dialIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+				startActivity(dialIntent);
 			}
-			
-			if (SensorOrientationY < -70 && SensorProximity == 0) {
-					mSensorManager.unregisterListener(this,
-					mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION));
-					mSensorManager.unregisterListener(this,
-					mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY));
-					
-					//start phone call intent
-					dialIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-					startActivity(dialIntent);
-				
-				}
-		//}
+		}
 	}
-	
+
 	@Override
 	public void onAccuracyChanged(Sensor sensor, int accuracy) {
 	}
 
-    @Override
+	@Override
     protected Dialog onCreateDialog(int id, Bundle args) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         switch (id) {
