@@ -333,7 +333,9 @@ public class ComposeMessageActivity extends Activity
     private static final String PICK_UP_TO_CALL = "pick_up_to_call";
     private int SensorOrientationY;
 	private int SensorProximity;
-	private int oldProximity = 3;
+	private int oldProximity;
+	private boolean initProx;
+	private boolean proxChanged;
 
     @SuppressWarnings("unused")
     private static void log(String logMsg) {
@@ -1809,22 +1811,22 @@ public class ComposeMessageActivity extends Activity
 		case Sensor.TYPE_ORIENTATION:
 			SensorOrientationY = (int) event.values[SensorManager.DATA_Y];
 			break;
-
+	
 		case Sensor.TYPE_PROXIMITY:
-			if (oldProximity != 3) {
-				oldProximity = SensorProximity;
-				SensorProximity = (int) event.values[0];
+			int currentProx = (int) event.values[0];
+			if (initProx) {
+				SensorProximity = currentProx;
+				initProx = false;
 			} else {
-				oldProximity = (int) event.values[0];
+				if( SensorProximity > 0 && currentProx == 0){
+					proxChanged = true;
+				}
 			}
+			SensorProximity = currentProx;
 			break;
 		}
 
-		/*
-		 * start a call with the recipients' number, if the Y-orientation is <
-		 * -65 and the value of the Proximity Sensor is 0
-		 */
-		if (rightOrientation(SensorOrientationY) && rightProximity(oldProximity, SensorProximity) ) {
+		if (rightOrientation(SensorOrientationY) && proxChanged ) {
 
 			if (getRecipients().isEmpty() == false) {
 				// unregister Listener to don't let the onSesorChanged run the
@@ -1857,8 +1859,8 @@ public class ComposeMessageActivity extends Activity
 		}
 	}
 	
-	public boolean rightProximity(int currentProximity, int oldProximity) {
-		if (oldProximity > 0 && currentProximity == 0) {
+	public boolean rightProximity(int oldProximityint, int currentProximity) {
+		if (oldProximity == 1 && currentProximity == 0) {
 			return true;
 		} else {
 			return false;
@@ -2230,8 +2232,10 @@ public class ComposeMessageActivity extends Activity
         //Pick-Up-To-Call
         try {
 			if(Settings.System.getInt(getContentResolver(),PICK_UP_TO_CALL) == 1) {
-				//SensorProximity = 1;
 				SensorOrientationY = 0;
+				SensorProximity = 0;
+				proxChanged = false;
+				initProx = true;
 				
 				mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
 				mSensorManager.registerListener(this,
