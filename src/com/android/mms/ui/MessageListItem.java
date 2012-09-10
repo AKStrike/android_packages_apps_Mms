@@ -66,6 +66,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.QuickContactBadge;
 import android.widget.TextView;
+import android.provider.Settings;
 
 import com.android.mms.MmsApp;
 import com.android.mms.R;
@@ -105,6 +106,7 @@ public class MessageListItem extends LinearLayout implements
     private Handler mHandler;
     private MessageItem mMessageItem;
     private boolean mBlackBackground;
+    private int badgeWidth;
 
     public MessageListItem(Context context) {
         super(context);
@@ -123,7 +125,12 @@ public class MessageListItem extends LinearLayout implements
         mAvatar = (QuickContactBadge) findViewById(R.id.avatar);
 
         ViewGroup.MarginLayoutParams badgeParams = (MarginLayoutParams)mAvatar.getLayoutParams();
-        final int badgeWidth = badgeParams.width + badgeParams.rightMargin + badgeParams.leftMargin;
+        badgeWidth = badgeParams.width + badgeParams.rightMargin + badgeParams.leftMargin;
+
+        if (Settings.System.getInt(mContext.getContentResolver(), Settings.System.HIDE_AVATAR_MESSAGE, 0) == 1) {
+	        mAvatar.setVisibility(View.GONE);
+    	    badgeWidth = 0;
+        }
 
         int lineHeight = mBodyTextView.getLineHeight();
         int effectiveBadgeHeight = badgeParams.height + badgeParams.topMargin - mBodyTextView.getPaddingTop();
