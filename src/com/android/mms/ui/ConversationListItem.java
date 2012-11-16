@@ -32,6 +32,7 @@ import android.graphics.drawable.Drawable;
 
 import android.os.Handler;
 import android.provider.ContactsContract.Intents;
+import android.provider.Settings;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.style.ForegroundColorSpan;
@@ -174,7 +175,12 @@ public class ConversationListItem extends RelativeLayout implements Contact.Upda
             mAvatarView.assignContactUri(null);
         }
         mAvatarView.setImageDrawable(avatarDrawable);
-        mAvatarView.setVisibility(View.VISIBLE);
+        if (Settings.System.getInt(mContext.getContentResolver(), Settings.System.HIDE_AVATAR_MESSAGE, 0) == 1) {
+            mAvatarView.setVisibility(View.GONE);
+        }
+        else {
+            mAvatarView.setVisibility(View.VISIBLE);
+        }
     }
 
     private void updateFromView() {
